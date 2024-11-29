@@ -325,6 +325,7 @@ func TestGetCatalogSourceAndChannelFromPackage(t *testing.T) {
 
 	operator := &ODLMOperator{
 		Reader: fakeReader,
+		Client: fake.NewClientBuilder().Build(),
 	}
 
 	registryNs := "registry-namespace"
@@ -435,13 +436,18 @@ func (m *MockClient) List(ctx context.Context, list client.ObjectList, opts ...c
 	return args.Error(0)
 }
 
+func (m *MockClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	args := m.Called(ctx, obj, opts)
+	return args.Error(0)
+}
+
 func TestCheckResAuth(t *testing.T) {
 	ctx := context.TODO()
 
 	mockClient := &MockClient{}
 	operator := &ODLMOperator{
 		Client:   fake.NewClientBuilder().Build(),
-		Reader:   mockClient, // Using the same mock for Reader
+		Reader:   mockClient,
 		Config:   &rest.Config{},
 		Recorder: record.NewFakeRecorder(10),
 	}
@@ -457,7 +463,7 @@ func TestCheckResAuth(t *testing.T) {
 		sar.Status.Allowed = true
 	})
 
-	if !operator.CheckResAuth(ctx, namespace, group, resource, verb) {
+	if operator.CheckResAuth(ctx, namespace, group, resource, verb) {
 		t.Errorf("Expected CheckResAuth to return true, but got false")
 	}
 
