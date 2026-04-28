@@ -739,6 +739,8 @@ func nestedBasicType(obj map[string]interface{}, fields ...string) (string, bool
 	}
 }
 
+// cleanupCopies deletes all copied secrets and configmaps when an OperandBindInfo is deleted.
+// Only resources labeled with OpbiTypeLabel="copy" are deleted, preserving original resources.
 func (r *Reconciler) cleanupCopies(ctx context.Context, bindInfoInstance *operatorv1alpha1.OperandBindInfo) error {
 	secretList := &corev1.SecretList{}
 	cmList := &corev1.ConfigMapList{}
@@ -753,15 +755,29 @@ func (r *Reconciler) cleanupCopies(ctx context.Context, bindInfoInstance *operat
 		return err
 	}
 
+	// Only delete copied secrets, not original ones
 	for i := range secretList.Items {
-		if err := r.Delete(ctx, &secretList.Items[i]); err != nil {
-			return err
+		// Check if this is a copied secret (not an original)
+		if secretList.Items[i].Labels[constant.OpbiTypeLabel] == "copy" {
+			if err := r.Delete(ctx, &secretList.Items[i]); err != nil {
+				return err
+			}
+			klog.V(1).Infof("Deleted copied secret %s/%s", secretList.Items[i].Namespace, secretList.Items[i].Name)
+		} else {
+			klog.V(1).Infof("Skipping deletion of original secret %s/%s", secretList.Items[i].Namespace, secretList.Items[i].Name)
 		}
 	}
 
+	// Only delete copied configmaps, not original ones
 	for i := range cmList.Items {
-		if err := r.Delete(ctx, &cmList.Items[i]); err != nil {
-			return err
+		// Check if this is a copied configmap (not an original)
+		if cmList.Items[i].Labels[constant.OpbiTypeLabel] == "copy" {
+			if err := r.Delete(ctx, &cmList.Items[i]); err != nil {
+				return err
+			}
+			klog.V(1).Infof("Deleted copied configmap %s/%s", cmList.Items[i].Namespace, cmList.Items[i].Name)
+		} else {
+			klog.V(1).Infof("Skipping deletion of original configmap %s/%s", cmList.Items[i].Namespace, cmList.Items[i].Name)
 		}
 	}
 	// Update finalizer to allow delete CR
