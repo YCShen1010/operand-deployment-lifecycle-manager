@@ -134,6 +134,15 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - pg.ibm.com
+  resources:
+  - imagecatalogs
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - roles
